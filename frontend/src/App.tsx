@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, CheckCircle2, GitBranch, RefreshCcw, Search, Users, Workflow } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, GitBranch, RefreshCcw, Search, Users, Workflow } from 'lucide-react'
 import type { BranchInfo } from './types'
 import { api } from './api/client'
 import { Header } from './components/Header'
@@ -50,31 +50,37 @@ function DashboardPage() {
   </>
 }
 
-function WorkflowsPage({ navigate }: PageProps) {
+function WorkflowsPage({ navigate, path }: PageProps & { path: string }) {
   const [q, setQ] = useState('')
   const [teams, setTeams] = useState<WorkflowTeam[]>([])
   const [folders, setFolders] = useState<WorkflowFolder[]>([])
   const [selectedTeam, setSelectedTeam] = useState('')
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const teamFromUrl = new URLSearchParams(path.split('?')[1] || '').get('team') || ''
+
   const loadTeams = () => {
     setLoading(true); setError('')
-    api.workflows(q, 1, 100).then((res) => { setTeams(res.data ?? []); setSelectedTeam(''); setFolders([]) }).catch((e) => setError(e.message)).finally(() => setLoading(false))
+    api.workflows(q, 1, 100).then((res) => { setTeams(res.data ?? []); setSelectedTeam(''); setFolders([]); setExpandedFolders(new Set()) }).catch((e) => setError(e.message)).finally(() => setLoading(false))
   }
 
-  const openTeam = (team: string) => {
-    setLoading(true); setError(''); setSelectedTeam(team)
+  const loadTeam = (team: string) => {
+    setLoading(true); setError(''); setSelectedTeam(team); setExpandedFolders(new Set())
     api.workflows(q, 1, 100, team).then((res) => setFolders(res.data ?? [])).catch((e) => setError(e.message)).finally(() => setLoading(false))
   }
 
-  useEffect(() => { loadTeams() }, [])
+  const openTeam = (team: string) => navigate(`/workflows?team=${encodeURIComponent(team)}`)
+  const toggleFolder = (folderName: string) => setExpandedFolders((current) => { const next = new Set(current); if (next.has(folderName)) next.delete(folderName); else next.add(folderName); return next })
+
+  useEffect(() => { if (teamFromUrl) loadTeam(teamFromUrl); else loadTeams() }, [teamFromUrl])
 
   if (selectedTeam) {
     return <>
-      <PageHeader title={selectedTeam} description="Workflows grouped by the sub-folder from workflow metadata." action={<button className="cm-btn-secondary" onClick={loadTeams}><ArrowLeft className="h-4 w-4" /> All teams</button>} />
+      <PageHeader title={selectedTeam} description="Workflows grouped by the sub-folder from workflow metadata." action={<button className="cm-btn-secondary" onClick={() => navigate('/workflows')}><ArrowLeft className="h-4 w-4" /> All teams</button>} />
       {error && <ErrorBox message={error} />}
-      {loading ? <Loading /> : <section className="space-y-4">{folders.length === 0 ? <div className="cm-card"><Empty text="No workflows found for this team." /></div> : folders.map((folder) => <div key={folder.name} className="cm-card overflow-hidden"><div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3"><div><p className="text-sm font-semibold text-slate-800">{folder.name}</p><p className="text-xs text-slate-400">Metadata sub-folder</p></div><span className="cm-badge bg-white text-slate-500 ring-1 ring-slate-200">{folder.workflowCount} workflow{folder.workflowCount === 1 ? '' : 's'}</span></div><div className="divide-y divide-slate-100">{folder.workflows.map((w) => <button key={w.branchName} onClick={() => navigate(`/mappings/${w.workflowId}`)} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50"><div className="min-w-0"><div className="flex items-center gap-2"><Workflow className="h-4 w-4 shrink-0 text-slate-400" /><span className="truncate font-medium text-slate-900">{w.workflowName || w.workflowId}</span></div><p className="mt-1 pl-6 font-mono text-xs text-slate-400">{w.workflowId} · {w.folderPath || 'Root'}</p></div><div className="flex shrink-0 items-center gap-3"><span className="hidden font-mono text-xs text-slate-400 md:block">{w.headSha}</span><span className="cm-badge bg-emerald-50 text-emerald-700">{w.status}</span><ArrowRight className="h-4 w-4 text-slate-300" /></div></button>)}</div></div>)}</section>}
+      {loading ? <Loading /> : <section className="space-y-4">{folders.length === 0 ? <div className="cm-card"><Empty text="No workflows found for this team." /></div> : folders.map((folder) => { const expanded = expandedFolders.has(folder.name); return <div key={folder.name} className="cm-card overflow-hidden"><button type="button" onClick={() => toggleFolder(folder.name)} className="flex w-full items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3 text-left hover:bg-slate-100"><div className="flex min-w-0 items-center gap-3"><ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${expanded ? '' : '-rotate-90'}`} /><div><p className="text-sm font-semibold text-slate-800">{folder.name}</p><p className="text-xs text-slate-400">Metadata sub-folder</p></div></div><span className="cm-badge bg-white text-slate-500 ring-1 ring-slate-200">{folder.workflowCount} workflow{folder.workflowCount === 1 ? '' : 's'}</span></button>{expanded && <div className="divide-y divide-slate-100">{folder.workflows.map((w) => <button key={w.branchName} onClick={() => navigate(`/mappings/${w.workflowId}`)} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50"><div className="min-w-0"><div className="flex items-center gap-2"><Workflow className="h-4 w-4 shrink-0 text-slate-400" /><span className="truncate font-medium text-slate-900">{w.workflowName || w.workflowId}</span></div><p className="mt-1 pl-6 font-mono text-xs text-slate-400">{w.workflowId} · {w.folderPath || 'Root'}</p></div><div className="flex shrink-0 items-center gap-3"><span className="hidden font-mono text-xs text-slate-400 md:block">{w.headSha}</span><span className="cm-badge bg-emerald-50 text-emerald-700">{w.status}</span><ArrowRight className="h-4 w-4 text-slate-300" /></div></button>)}</div>}</div> })}</section>}
     </>
   }
 
@@ -125,15 +131,16 @@ export default function App() {
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [path, setPath] = useState(() => window.location.pathname === '/' ? '/dashboard' : window.location.pathname)
+  const [path, setPath] = useState(() => { const current = window.location.pathname + window.location.search; return current === '/' ? '/dashboard' : current })
   const [selectedBranch, setSelectedBranch] = useState<BranchInfo | null>(null)
   const navigate = (next: string) => { window.history.pushState({}, '', next); setPath(next) }
-  useEffect(() => { const handler = () => setPath(window.location.pathname); window.addEventListener('popstate', handler); return () => window.removeEventListener('popstate', handler) }, [])
+  useEffect(() => { const handler = () => setPath(window.location.pathname + window.location.search); window.addEventListener('popstate', handler); return () => window.removeEventListener('popstate', handler) }, [])
   useEffect(() => { api.me().then((res) => { if (!res.authenticated || !res.user) { api.login(); return }; setUser(res.user) }).catch((err) => setError(err?.message ?? 'Gagal memuat session login.')).finally(() => setSessionLoading(false)) }, [])
-  useEffect(() => { if (path.startsWith('/mappings/') && !selectedBranch) { const id = decodeURIComponent(path.split('/')[2] || ''); api.mappings(id, 1, 1, 'all').then((res) => { const found = res.data.find((item: any) => item.workflowId === id); if (found) setSelectedBranch(found) }).catch(() => {}) } }, [path, selectedBranch])
+  useEffect(() => { if (path.startsWith('/mappings/') && !selectedBranch) { const id = decodeURIComponent(path.split('/')[2]?.split('?')[0] || ''); api.mappings(id, 1, 1, 'all').then((res) => { const found = res.data.find((item: any) => item.workflowId === id); if (found) setSelectedBranch(found) }).catch(() => {}) } }, [path, selectedBranch])
   if (sessionLoading) return <Loading />
   if (error) return <div className="flex min-h-screen items-center justify-center"><ErrorBox message={error} onRetry={() => api.login()} /></div>
   if (!user) return <Loading />
-  const detail = path.startsWith('/mappings/') && selectedBranch
-  return <div className="min-h-screen bg-slate-50"><Header user={user} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar path={path} onNavigate={(next) => { setSelectedBranch(null); navigate(next) }} /><main className="min-w-0 flex-1 px-5 py-7 lg:px-8">{detail ? <MappingEditor branch={selectedBranch} onBack={() => { setSelectedBranch(null); navigate('/mappings') }} /> : path === '/workflows' ? <WorkflowsPage navigate={navigate} /> : path === '/mappings' ? <MappingsPage navigate={navigate} /> : path === '/audit' ? <AuditPage /> : <DashboardPage />}</main></div></div>
+  const route = path.split('?')[0]
+  const detail = route.startsWith('/mappings/') && selectedBranch
+  return <div className="min-h-screen bg-slate-50"><Header user={user} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar path={route} onNavigate={(next) => { setSelectedBranch(null); navigate(next) }} /><main className="min-w-0 flex-1 px-5 py-7 lg:px-8">{detail ? <MappingEditor branch={selectedBranch} onBack={() => { setSelectedBranch(null); navigate('/mappings') }} /> : route === '/workflows' ? <WorkflowsPage navigate={navigate} path={path} /> : route === '/mappings' ? <MappingsPage navigate={navigate} /> : route === '/audit' ? <AuditPage /> : <DashboardPage />}</main></div></div>
 }
