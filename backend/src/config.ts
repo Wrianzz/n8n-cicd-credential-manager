@@ -18,6 +18,8 @@ const EnvSchema = z.object({
   N8N_ALLOW_SELF_SIGNED_TLS: z.coerce.boolean().default(false),
 
   AUTH_MODE: z.enum(['dev', 'keycloak']).default('dev'),
+  DEV_USER_EMAIL: z.string().email().default('operator@example.com'),
+  DEV_USER_NAME: z.string().default('Development Operator'),
 
   APP_PUBLIC_URL: z.string().default('http://localhost:5173'),
 
