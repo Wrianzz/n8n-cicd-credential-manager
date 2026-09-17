@@ -1,6 +1,7 @@
 import type { AuditLog, BranchInfo, MapMutationPayload, ValidationResponse, WorkflowMapResponse } from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+let workflowsController: AbortController | null = null
 
 async function parseBody(res: Response) {
   const text = await res.text()
@@ -30,7 +31,16 @@ export const api = {
   login: () => { const returnTo = `${window.location.pathname}${window.location.search}`; window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}` },
   logout: () => { window.location.href = '/api/auth/logout' },
   dashboard: () => request<any>('/api/dashboard'),
-  workflows: (q?: string, page = 1, limit = 20, team?: string) => request<any>(`/api/workflows?${new URLSearchParams({ ...(q ? { q } : {}), ...(team ? { team } : {}), page: String(page), limit: String(limit) })}`),
+  workflows: (q?: string, page = 1, limit = 20, team?: string) => {
+    workflowsController?.abort()
+    const controller = new AbortController()
+    workflowsController = controller
+    return request<any>(`/api/workflows?${new URLSearchParams({ ...(q ? { q } : {}), ...(team ? { team } : {}), page: String(page), limit: String(limit) })}`, { signal: controller.signal })
+      .catch((error) => {
+        if (error?.name === 'AbortError') return new Promise<any>(() => {})
+        throw error
+      })
+  },
   mappings: (q?: string, page = 1, limit = 20, status = 'all') => request<any>(`/api/mappings?${new URLSearchParams({ ...(q ? { q } : {}), status, page: String(page), limit: String(limit) })}`),
   drafts: (status?: string, page = 1, limit = 20) => request<any>(`/api/drafts?${new URLSearchParams({ ...(status ? { status } : {}), page: String(page), limit: String(limit) })}`),
   repository: () => request<any>('/api/repository'),
