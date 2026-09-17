@@ -1,0 +1,28 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ccp-backend
+    env_file:
+      - ./backend/.env
+    volumes:
+      - /home/morax/n8n-cicd-workflows:/data/n8n-cicd-workflows
+      - /home/morax/.git-credentials:/root/.git-credentials:ro
+      - /home/morax/.gitconfig:/root/.gitconfig:ro
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ccp-frontend
+    ports:
+      - "8080:443"
+    volumes:
+      - ./frontend/certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
