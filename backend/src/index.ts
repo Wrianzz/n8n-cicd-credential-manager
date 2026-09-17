@@ -23,6 +23,26 @@ await app.register(cookie, { secret: config.SESSION_COOKIE_SECRET || 'dev-only-c
 await registerErrorHandler(app)
 app.get('/healthz', async (req) => ({ ok: true, traceId: req.id }))
 await registerAuth(app)
+
+// Development authentication intentionally bypasses Keycloak. Keep the same
+// /api/auth/me contract as production so the frontend does not need a special path.
+if (config.AUTH_MODE === 'dev') {
+  app.get('/api/auth/me', async (_req, reply) => {
+    return reply.send({
+      authenticated: true,
+      user: {
+        id: config.DEV_USER_EMAIL,
+        email: config.DEV_USER_EMAIL,
+        name: config.DEV_USER_NAME
+      }
+    })
+  })
+
+  app.get('/api/auth/logout', async (_req, reply) => {
+    return reply.redirect(config.APP_PUBLIC_URL)
+  })
+}
+
 await registerDashboardRoutes(app)
 await registerWorkflowRoutes(app)
 await registerMappingListRoutes(app)
