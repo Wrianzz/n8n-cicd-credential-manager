@@ -1,11 +1,10 @@
-import { Activity, Boxes, GitBranch, LayoutDashboard } from 'lucide-react'
+import { Boxes, GitBranch, LayoutDashboard } from 'lucide-react'
 
 type Props = { path: string; onNavigate: (path: string) => void }
 const items = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'Workflows', path: '/workflows', icon: GitBranch },
-  { label: 'Mappings', path: '/mappings', icon: Boxes },
-  { label: 'Audit Logs', path: '/audit', icon: Activity }
+  { label: 'Mappings', path: '/mappings', icon: Boxes }
 ]
 
 export function Sidebar({ path, onNavigate }: Props) {
