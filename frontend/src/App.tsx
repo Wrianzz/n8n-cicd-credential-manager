@@ -43,9 +43,8 @@ function DashboardPage() {
       <StatCard label="Workflows" value={s.workflows} icon={Workflow} />
       <StatCard label="Configured mappings" value={s.mappings} icon={GitBranch} />
     </div>
-    <div className="mt-6 grid gap-6 xl:grid-cols-2">
+    <div className="mt-6">
       <section className="cm-card p-5"><div className="mb-5"><h2 className="font-semibold text-slate-950">Repository status</h2><p className="text-sm text-slate-500">Current repository inventory.</p></div><div className="grid gap-3 sm:grid-cols-2"><Info label="Status" value="Connected" /><Info label="Remote" value={data.repository.remote} mono /><Info label="Teams" value={data.repository.teamCount} /><Info label="Workflows" value={data.repository.workflowCount} /></div><div className="mt-5 flex items-center gap-2 text-xs text-slate-400"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> Last checked {new Date(data.repository.syncedAt).toLocaleString()}</div></section>
-      <section className="cm-card p-5"><div className="mb-4"><h2 className="font-semibold text-slate-950">Recent activity</h2><p className="text-sm text-slate-500">Latest audit events.</p></div><div className="divide-y divide-slate-100">{data.recentActivity.length === 0 ? <Empty text="No activity recorded yet." /> : data.recentActivity.map((row: any) => <div key={row.id} className="flex items-center justify-between gap-4 py-3"><div><p className="text-sm font-medium text-slate-800">{row.action}</p><p className="text-xs text-slate-500">{row.actorEmail}{row.workflowId ? ` · ${row.workflowId}` : ''}</p></div><span className="shrink-0 text-xs text-slate-400">{new Date(row.createdAt).toLocaleString()}</span></div>)}</div></section>
     </div>
   </>
 }
@@ -137,8 +136,6 @@ function MappingsPage({ navigate }: PageProps) {
   </>
 }
 
-function AuditPage() { const [data, setData] = useState<any>(null); const [error, setError] = useState(''); useEffect(() => { api.listAudit().then(setData).catch((e) => setError(e.message)) }, []); return <><PageHeader title="Audit Logs" description="Track mapping, synchronization, validation, and commit activity." />{error ? <ErrorBox message={error} /> : !data ? <Loading /> : <section className="cm-card overflow-hidden"><div className="divide-y divide-slate-100">{data.data.map((row: any) => <div key={row.id} className="grid gap-2 px-5 py-4 md:grid-cols-[1fr_1.5fr_auto]"><div><span className="cm-badge bg-slate-100 text-slate-700">{row.action}</span></div><div><p className="text-sm font-medium text-slate-800">{row.actorEmail}</p><p className="font-mono text-xs text-slate-400">{row.workflowId || row.branchName || 'System event'}</p></div><p className="text-xs text-slate-400 md:text-right">{new Date(row.createdAt).toLocaleString()}</p></div>)}{data.data.length === 0 && <Empty text="No audit events recorded yet." />}</div></section>}</> }
-
 export default function App() {
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
@@ -154,5 +151,5 @@ export default function App() {
   if (!user) return <Loading />
   const route = path.split('?')[0]
   const detail = route.startsWith('/mappings/') && selectedBranch
-  return <div className="min-h-screen bg-slate-50"><Header user={user} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar path={route} onNavigate={(next) => { setSelectedBranch(null); navigate(next) }} /><main className="min-w-0 flex-1 px-5 py-7 lg:px-8">{detail ? <MappingEditor branch={selectedBranch} onBack={() => { setSelectedBranch(null); navigate('/mappings') }} /> : route === '/workflows' ? <WorkflowsPage navigate={navigate} path={path} /> : route === '/mappings' ? <MappingsPage navigate={navigate} /> : route === '/audit' ? <AuditPage /> : <DashboardPage />}</main></div></div>
+  return <div className="min-h-screen bg-slate-50"><Header user={user} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar path={route} onNavigate={(next) => { setSelectedBranch(null); navigate(next) }} /><main className="min-w-0 flex-1 px-5 py-7 lg:px-8">{detail ? <MappingEditor branch={selectedBranch} onBack={() => { setSelectedBranch(null); navigate('/mappings') }} /> : route === '/workflows' ? <WorkflowsPage navigate={navigate} path={path} /> : route === '/mappings' ? <MappingsPage navigate={navigate} /> : <DashboardPage />}</main></div></div>
 }
