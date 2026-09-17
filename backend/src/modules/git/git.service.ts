@@ -29,6 +29,10 @@ export class GitService {
     private readonly remote = config.GIT_REMOTE
   ) {}
 
+  getRemoteName() {
+    return this.remote
+  }
+
   private async git(args: string[], options: ExecOptions = {}) {
     try {
       const { stdout, stderr } = await execFileAsync('git', args, {
@@ -107,41 +111,22 @@ export class GitService {
       allowFailure: true
     })
 
-    if (stderr.includes('exists on disk, but not in') || stderr.includes('does not exist') || stderr.includes('Path')) {
-      return null
-    }
-
-    if (stderr && !stdout) {
-      return null
-    }
-
+    if (stderr.includes('exists on disk, but not in') || stderr.includes('does not exist') || stderr.includes('Path')) return null
+    if (stderr && !stdout) return null
     return stdout
   }
 
   async readJsonFromBranch<T>(branchName: string, filePath: string): Promise<T | null> {
     const content = await this.readFileFromBranch(branchName, filePath)
     if (!content) return null
-    try {
-      return JSON.parse(content) as T
-    } catch (err) {
+    try { return JSON.parse(content) as T } catch {
       throw new AppError(422, 'REPO_JSON_INVALID', `File ${filePath} bukan JSON valid.`, { filePath })
     }
   }
 
-  workflowJsonPath(workflowId: string) {
-    assertValidWorkflowId(workflowId)
-    return `workflows/${workflowId}.json`
-  }
-
-  credentialMapPath(workflowId: string) {
-    assertValidWorkflowId(workflowId)
-    return `workflows/credential-maps/${workflowId}.credentials.json`
-  }
-
-  workflowMetadataPath(workflowId: string) {
-    assertValidWorkflowId(workflowId)
-    return `workflows/metadata/${workflowId}.meta`
-  }
+  workflowJsonPath(workflowId: string) { assertValidWorkflowId(workflowId); return `workflows/${workflowId}.json` }
+  credentialMapPath(workflowId: string) { assertValidWorkflowId(workflowId); return `workflows/credential-maps/${workflowId}.credentials.json` }
+  workflowMetadataPath(workflowId: string) { assertValidWorkflowId(workflowId); return `workflows/metadata/${workflowId}.meta` }
 
   async readWorkflowFolderPath(branchName: string, workflowId: string): Promise<string | null> {
     const content = await this.readFileFromBranch(branchName, this.workflowMetadataPath(workflowId))
@@ -154,26 +139,19 @@ export class GitService {
   }
 
   extractWorkflowName(workflow: unknown): string | null {
-    if (Array.isArray(workflow)) {
-      return workflow.map((item) => this.extractWorkflowName(item)).find(Boolean) ?? null
-    }
-
+    if (Array.isArray(workflow)) return workflow.map((item) => this.extractWorkflowName(item)).find(Boolean) ?? null
     if (!workflow || typeof workflow !== 'object') return null
-
     const record = workflow as Record<string, unknown>
     const directName = record.name
     if (typeof directName === 'string' && directName.trim()) return directName.trim()
-
     return this.extractWorkflowName(record.workflow) ?? this.extractWorkflowName(record.data)
   }
 
   async withWorktree<T>(branchName: string, handler: (worktreePath: string) => Promise<T>): Promise<T> {
     assertValidBranchName(branchName)
     await this.fetch()
-
     const tempDir = await mkdtemp(path.join(tmpdir(), 'credential-manager-'))
     const worktreePath = path.join(tempDir, 'repo')
-
     try {
       await this.git(['worktree', 'add', '--detach', worktreePath, `${this.remote}/${branchName}`])
       await this.git(['config', 'user.name', 'Credential Manager'], { cwd: worktreePath })
@@ -191,26 +169,16 @@ export class GitService {
     await mkdir(path.dirname(absolute), { recursive: true })
     await writeFile(absolute, content, 'utf8')
   }
-
   async readWorktreeFile(worktreePath: string, repoRelativePath: string): Promise<string | null> {
     const safePath = this.assertSafeRepoRelativePath(repoRelativePath)
-    try {
-      return await readFile(path.join(worktreePath, safePath), 'utf8')
-    } catch {
-      return null
-    }
+    try { return await readFile(path.join(worktreePath, safePath), 'utf8') } catch { return null }
   }
-
   async diff(worktreePath: string): Promise<string> {
-    const { stdout } = await this.git(['diff', '--', 'workflows/credential-maps'], { cwd: worktreePath })
-    return stdout
+    const { stdout } = await this.git(['diff', '--', 'workflows/credential-maps'], { cwd: worktreePath }); return stdout
   }
-
   async hasChanges(worktreePath: string): Promise<boolean> {
-    const { stdout } = await this.git(['status', '--porcelain', '--', 'workflows/credential-maps'], { cwd: worktreePath })
-    return stdout.trim().length > 0
+    const { stdout } = await this.git(['status', '--porcelain', '--', 'workflows/credential-maps'], { cwd: worktreePath }); return stdout.trim().length > 0
   }
-
   async commitAndPush(worktreePath: string, branchName: string, message: string): Promise<string> {
     assertValidBranchName(branchName)
     await this.git(['add', 'workflows/credential-maps'], { cwd: worktreePath })
@@ -220,12 +188,9 @@ export class GitService {
     await this.git(['push', this.remote, `HEAD:${branchName}`], { cwd: worktreePath })
     return commitSha
   }
-
   private assertSafeRepoRelativePath(repoRelativePath: string) {
     const normalized = path.posix.normalize(repoRelativePath).replace(/^\/+/, '')
-    if (normalized.startsWith('..') || path.isAbsolute(normalized)) {
-      throw new AppError(400, 'INVALID_REPO_PATH', 'Path repository tidak valid.', { repoRelativePath })
-    }
+    if (normalized.startsWith('..') || path.isAbsolute(normalized)) throw new AppError(400, 'INVALID_REPO_PATH', 'Path repository tidak valid.', { repoRelativePath })
     return normalized
   }
 }
