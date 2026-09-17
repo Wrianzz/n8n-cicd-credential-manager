@@ -55,7 +55,7 @@ export async function registerWorkflowRoutes(app: FastifyInstance) {
         continue
       }
 
-      let current = rootFolders.get(folderSegments[0])
+      let current: WorkflowFolder | undefined = rootFolders.get(folderSegments[0])
       if (!current) {
         current = { name: folderSegments[0], workflowCount: 0, workflows: [], children: [] }
         rootFolders.set(folderSegments[0], current)
@@ -69,7 +69,7 @@ export async function registerWorkflowRoutes(app: FastifyInstance) {
 
       for (let index = 1; index < folderSegments.length; index += 1) {
         const segment = folderSegments[index]
-        let child = current.children.find((item) => item.name === segment)
+        let child: WorkflowFolder | undefined = current.children.find((item) => item.name === segment)
         if (!child) {
           child = { name: segment, workflowCount: 0, workflows: [], children: [] }
           current.children.push(child)
