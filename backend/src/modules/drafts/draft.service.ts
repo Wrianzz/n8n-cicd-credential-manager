@@ -29,20 +29,11 @@ function hashPayload(payload: DraftPayload) {
 export class DraftService {
   save(payload: DraftPayload, actorEmail: string): Draft {
     const contentHash = hashPayload(payload)
-    const previous = drafts.find(
-      (draft) =>
-        draft.branchName === payload.branchName &&
-        draft.workflowId === payload.workflowId &&
-        draft.status === 'draft'
-    )
-
-    if (previous && previous.contentHash === contentHash) {
-      return previous
-    }
+    const previous = drafts.find((draft) => draft.branchName === payload.branchName && draft.workflowId === payload.workflowId && draft.status === 'draft')
+    if (previous && previous.contentHash === contentHash) return previous
 
     const nextVersion = previous ? previous.version + 1 : 1
     if (previous) previous.status = 'discarded'
-
     const now = new Date().toISOString()
     const draft: Draft = {
       ...payload,
@@ -55,13 +46,20 @@ export class DraftService {
       createdAt: previous?.createdAt ?? now,
       updatedAt: now
     }
-
     drafts.unshift(draft)
     return draft
   }
 
-  get(draftId: string): Draft | undefined {
-    return drafts.find((draft) => draft.draftId === draftId)
+  get(draftId: string): Draft | undefined { return drafts.find((draft) => draft.draftId === draftId) }
+
+  list(filter: { page?: number; limit?: number; status?: Draft['status'] } = {}) {
+    const page = filter.page ?? 1
+    const limit = filter.limit ?? 20
+    const rows = drafts.filter((draft) => !filter.status || draft.status === filter.status)
+    return {
+      data: rows.slice((page - 1) * limit, page * limit),
+      pagination: { page, limit, total: rows.length }
+    }
   }
 
   markCommitted(draftId: string) {
