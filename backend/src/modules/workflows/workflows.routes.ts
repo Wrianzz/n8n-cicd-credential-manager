@@ -6,6 +6,7 @@ export async function registerWorkflowRoutes(app: FastifyInstance) {
   app.get('/api/workflows', async (req) => {
     const query = z.object({
       q: z.string().optional(),
+      team: z.string().optional(),
       page: z.coerce.number().default(1),
       limit: z.coerce.number().default(20)
     }).parse(req.query)
@@ -21,13 +22,37 @@ export async function registerWorkflowRoutes(app: FastifyInstance) {
 
     const teams = [...grouped.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, workflows]) => ({ name, workflowCount: workflows.length }))
+
+    if (!query.team) {
+      const start = (query.page - 1) * query.limit
+      return {
+        data: teams.slice(start, start + query.limit),
+        pagination: { page: query.page, limit: query.limit, total: teams.length },
+        workflowTotal: branches.length
+      }
+    }
+
+    const teamWorkflows = grouped.get(query.team) ?? []
+    const folders = new Map<string, typeof teamWorkflows>()
+    for (const workflow of teamWorkflows) {
+      const segments = workflow.folderPath?.split('/').map((segment) => segment.trim()).filter(Boolean) ?? []
+      const subfolder = segments.length > 1 ? segments.slice(1).join('/') : 'Root'
+      const rows = folders.get(subfolder) ?? []
+      rows.push(workflow)
+      folders.set(subfolder, rows)
+    }
+
+    const data = [...folders.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([name, workflows]) => ({ name, workflowCount: workflows.length, workflows }))
 
     const start = (query.page - 1) * query.limit
     return {
-      data: teams.slice(start, start + query.limit),
-      pagination: { page: query.page, limit: query.limit, total: teams.length },
-      workflowTotal: branches.length
+      team: query.team,
+      data: data.slice(start, start + query.limit),
+      pagination: { page: query.page, limit: query.limit, total: data.length },
+      workflowTotal: teamWorkflows.length
     }
   })
 }
