@@ -14,14 +14,14 @@ export async function registerDashboardRoutes(app: FastifyInstance) {
       summary: {
         teams: teams.size,
         workflows: branches.length,
-        mappings: branches.filter((branch) => branch.status === 'active').length,
+        mappings: branches.length,
         drafts: drafts.pagination.total,
         active: branches.length,
         attention: drafts.pagination.total
       },
       recentActivity: audit.data,
       repository: {
-        remote: gitService.remoteName(),
+        remote: gitService.getRemoteName(),
         workflowCount: branches.length,
         teamCount: teams.size,
         syncedAt: new Date().toISOString()
