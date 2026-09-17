@@ -8,7 +8,6 @@ import { Sidebar } from './components/Sidebar'
 
 type CurrentUser = { id: string; email: string; name: string }
 type PageProps = { navigate: (path: string) => void }
-
 type WorkflowTeam = { name: string; workflowCount: number }
 type WorkflowFolder = { name: string; workflowCount: number; workflows: BranchInfo[] }
 
@@ -94,19 +93,28 @@ function MappingsPage({ navigate }: PageProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const limit = 20
+  const requestId = useState(() => ({ current: 0 }))[0]
 
-  const load = (nextPage = page, nextStatus = status) => { setLoading(true); setError(''); api.mappings(q, nextPage, limit, nextStatus).then(setData).catch((e) => setError(e.message)).finally(() => setLoading(false)) }
-  useEffect(() => { load(1, status) }, [status])
+  const load = (nextPage = page, nextStatus = status) => {
+    const id = ++requestId.current
+    setLoading(true); setError('')
+    api.mappings(q, nextPage, limit, nextStatus)
+      .then((res) => { if (id === requestId.current) setData(res) })
+      .catch((e) => { if (id === requestId.current) setError(e.message) })
+      .finally(() => { if (id === requestId.current) setLoading(false) })
+  }
+
   useEffect(() => { load(1, 'all') }, [])
 
   const changeStatus = (next: 'all' | 'configured' | 'not_configured') => { setStatus(next); setPage(1); load(1, next) }
   const changePage = (next: number) => { setPage(next); load(next, status) }
+  const search = () => { setPage(1); load(1, status) }
   const totalPages = Math.max(1, Math.ceil((data?.pagination?.total ?? 0) / limit))
 
   return <>
-    <PageHeader title="Mappings" description="Review credential mapping coverage with status filtering and pagination." action={<div className="flex flex-wrap gap-2"><div className="relative"><Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input className="cm-input pl-9 sm:w-64" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(1)} placeholder="Search mappings..." /></div><button className="cm-btn-secondary" onClick={() => load(1)}>Search</button></div>} />
+    <PageHeader title="Mappings" description="Review credential mapping coverage with status filtering and pagination." action={<div className="flex flex-wrap gap-2"><div className="relative"><Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input className="cm-input pl-9 sm:w-64" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="Search mappings..." /></div><button className="cm-btn-secondary" onClick={search}>Search</button></div>} />
     <div className="mb-4 flex flex-wrap items-center gap-2"><span className="mr-2 text-sm font-medium text-slate-600">Filter:</span>{([['all', 'All'], ['configured', 'Configured'], ['not_configured', 'Not configured']] as const).map(([value, label]) => <button key={value} onClick={() => changeStatus(value)} className={`rounded-lg px-3 py-2 text-sm font-medium ${status === value ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'}`}>{label}</button>)}{data && <span className="ml-auto text-sm text-slate-500">{data.pagination.total} result{data.pagination.total === 1 ? '' : 's'}</span>}</div>
-    {error && <ErrorBox message={error} onRetry={() => load(page)} />}
+    {error && <ErrorBox message={error} onRetry={() => load(page, status)} />}
     {loading ? <Loading /> : <section className="cm-card overflow-hidden"><div className="overflow-x-auto"><table className="min-w-full text-sm"><thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">Workflow</th><th className="px-5 py-3">Team</th><th className="px-5 py-3">Entries</th><th className="px-5 py-3">Mapping</th><th className="px-5 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{data?.data.map((w: any) => <tr key={w.branchName} className="hover:bg-slate-50"><td className="px-5 py-4"><p className="font-medium text-slate-900">{w.workflowName || w.workflowId}</p><p className="font-mono text-xs text-slate-400">{w.workflowId}</p></td><td className="px-5 py-4 text-slate-600">{w.teamFolder || 'Unassigned'}</td><td className="px-5 py-4 text-slate-600">{w.entryCount}</td><td className="px-5 py-4"><span className={`cm-badge ${w.mappingExists ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{w.mappingExists ? 'Configured' : 'Not configured'}</span></td><td className="px-5 py-4 text-right"><button className="cm-btn-primary" onClick={() => navigate(`/mappings/${w.workflowId}`)}>Open</button></td></tr>)}{data?.data.length === 0 && <tr><td colSpan={5}><Empty text="No mappings found." /></td></tr>}</tbody></table></div><div className="flex items-center justify-between border-t border-slate-100 px-5 py-4"><p className="text-xs text-slate-500">Page {data?.pagination?.page ?? page} of {totalPages}</p><div className="flex gap-2"><button className="cm-btn-secondary" disabled={page <= 1} onClick={() => changePage(page - 1)}>Previous</button><button className="cm-btn-secondary" disabled={page >= totalPages} onClick={() => changePage(page + 1)}>Next</button></div></div></section>}
   </>
 }
