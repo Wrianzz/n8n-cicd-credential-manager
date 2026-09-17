@@ -12,22 +12,13 @@ import { registerMappingListRoutes } from './modules/maps/mappings.routes.js'
 import { registerDraftRoutes } from './modules/drafts/drafts.routes.js'
 import { registerWorkflowRoutes } from './modules/workflows/workflows.routes.js'
 import { registerDashboardRoutes } from './modules/dashboard/dashboard.routes.js'
+import { registerRepositoryRoutes } from './modules/repository/repository.routes.js'
 
 const app = Fastify({ logger: true, genReqId: () => `trc_${randomUUID()}` })
-
 app.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string' }, (_req, body, done) => {
-  try {
-    const params = new URLSearchParams(String(body))
-    done(null, Object.fromEntries(params.entries()))
-  } catch (error) { done(error as Error) }
+  try { done(null, Object.fromEntries(new URLSearchParams(String(body)).entries())) } catch (error) { done(error as Error) }
 })
-
-await app.register(cors, {
-  origin: config.CORS_ORIGIN.split(',').map((origin) => origin.trim()),
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
-})
+await app.register(cors, { origin: config.CORS_ORIGIN.split(',').map((origin) => origin.trim()), credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type'] })
 await app.register(cookie, { secret: config.SESSION_COOKIE_SECRET || 'dev-only-cookie-secret-change-this-please' })
 await registerErrorHandler(app)
 app.get('/healthz', async (req) => ({ ok: true, traceId: req.id }))
@@ -36,6 +27,7 @@ await registerDashboardRoutes(app)
 await registerWorkflowRoutes(app)
 await registerMappingListRoutes(app)
 await registerDraftRoutes(app)
+await registerRepositoryRoutes(app)
 await registerBranchRoutes(app)
 await registerMapRoutes(app)
 await registerAuditRoutes(app)
