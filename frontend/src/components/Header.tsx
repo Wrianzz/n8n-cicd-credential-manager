@@ -1,51 +1,11 @@
-import { LogOut, ShieldCheck } from 'lucide-react'
+import { HelpCircle, LogOut, User } from 'lucide-react'
 import { api } from '../api/client'
 
-type HeaderProps = {
-  user: {
-    name: string
-    email: string
-  }
-}
+type HeaderProps = { user: { name: string; email: string } }
 
 export function Header({ user }: HeaderProps) {
-  return (
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
-
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-950">
-              Credential Control Panel
-            </h1>
-            <p className="text-sm text-slate-500">
-              n8n workflow branch-based credential map manager
-            </p>
-          </div>
-        </div>
-
-        <div className="cm-card flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
-          <div className="min-w-64 rounded-xl border border-slate-200 px-4 py-2">
-            <p className="text-sm font-semibold text-slate-900">
-              {user.name}
-            </p>
-            <p className="text-xs text-slate-500">
-              {user.email}
-            </p>
-          </div>
-
-          <button
-            className="cm-btn-secondary flex items-center gap-2"
-            onClick={() => api.logout()}
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </button>
-        </div>
-      </div>
-    </header>
-  )
+  return <header className="h-16 border-b border-slate-800 bg-[#0b0b0d] text-white"><div className="flex h-full items-center justify-between px-5">
+    <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center bg-white text-slate-950"><span className="text-xs font-black">CM</span></div><div><p className="text-sm font-semibold">Credential Control Panel</p><p className="text-[11px] text-slate-400">n8n workflow credential management</p></div></div>
+    <div className="flex items-center gap-2"><button className="rounded-md border border-slate-700 p-2 text-slate-300 hover:bg-slate-800" title="Help"><HelpCircle className="h-4 w-4" /></button><div className="mx-2 hidden h-7 w-px bg-slate-700 sm:block" /><div className="flex items-center gap-2 rounded-md px-2 py-1.5"><User className="h-4 w-4 text-slate-400" /><div className="hidden text-right sm:block"><p className="text-xs font-medium">{user.name}</p><p className="text-[10px] text-slate-400">{user.email}</p></div></div><button onClick={() => api.logout()} className="rounded-md border border-slate-700 p-2 text-slate-300 hover:bg-slate-800" title="Logout"><LogOut className="h-4 w-4" /></button></div>
+  </div></header>
 }
