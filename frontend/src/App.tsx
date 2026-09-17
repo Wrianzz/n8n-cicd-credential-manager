@@ -9,7 +9,7 @@ import { Sidebar } from './components/Sidebar'
 type CurrentUser = { id: string; email: string; name: string }
 type PageProps = { navigate: (path: string) => void }
 type WorkflowTeam = { name: string; workflowCount: number }
-type WorkflowFolder = { name: string; workflowCount: number; workflows: BranchInfo[] }
+type WorkflowFolder = { name: string; workflowCount: number; workflows: BranchInfo[]; children: WorkflowFolder[] }
 
 function PageHeader({ title, description, action }: { title: string; description: string; action?: any }) {
   return <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h1><p className="mt-1 text-sm text-slate-500">{description}</p></div>{action}</div>
@@ -50,6 +50,18 @@ function DashboardPage() {
   </>
 }
 
+function WorkflowRow({ workflow, navigate }: { workflow: BranchInfo; navigate: (path: string) => void }) {
+  return <button onClick={() => navigate(`/mappings/${workflow.workflowId}`)} className="flex w-full items-center justify-between gap-4 border-t border-slate-100 px-5 py-4 text-left hover:bg-slate-50"><div className="min-w-0"><div className="flex items-center gap-2"><Workflow className="h-4 w-4 shrink-0 text-slate-400" /><span className="truncate font-medium text-slate-900">{workflow.workflowName || workflow.workflowId}</span></div><p className="mt-1 pl-6 font-mono text-xs text-slate-400">{workflow.workflowId} · {workflow.folderPath || 'Root'}</p></div><div className="flex shrink-0 items-center gap-3"><span className="hidden font-mono text-xs text-slate-400 md:block">{workflow.headSha}</span><span className="cm-badge bg-emerald-50 text-emerald-700">{workflow.status}</span><ArrowRight className="h-4 w-4 text-slate-300" /></div></button>
+}
+
+function WorkflowFolderNode({ folder, navigate, expandedFolders, toggleFolder, depth = 0 }: { folder: WorkflowFolder; navigate: (path: string) => void; expandedFolders: Set<string>; toggleFolder: (path: string) => void; depth?: number }) {
+  const folderKey = `${depth}:${folder.name}`
+  const expanded = expandedFolders.has(folderKey)
+  const hasChildren = folder.children.length > 0
+  const hasWorkflows = folder.workflows.length > 0
+  return <div className="cm-card overflow-hidden"><button type="button" onClick={() => toggleFolder(folderKey)} className="flex w-full items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3 text-left hover:bg-slate-100"><div className="flex min-w-0 items-center gap-3" style={{ paddingLeft: `${depth * 18}px` }}><ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${expanded ? '' : '-rotate-90'}`} /><div><p className="text-sm font-semibold text-slate-800">{folder.name}</p><p className="text-xs text-slate-400">{hasChildren ? `${folder.children.length} sub-folder${folder.children.length === 1 ? '' : 's'}` : 'Metadata sub-folder'}</p></div></div><span className="cm-badge bg-white text-slate-500 ring-1 ring-slate-200">{folder.workflowCount} workflow{folder.workflowCount === 1 ? '' : 's'}</span></button>{expanded && <div>{hasWorkflows && <div>{folder.workflows.map((workflow) => <WorkflowRow key={workflow.branchName} workflow={workflow} navigate={navigate} />)}</div>}{hasChildren && <div className="space-y-3 bg-slate-50/50 p-3">{folder.children.map((child) => <WorkflowFolderNode key={`${folderKey}/${child.name}`} folder={child} navigate={navigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder} depth={depth + 1} />)}</div>}</div>}</div>
+}
+
 function WorkflowsPage({ navigate, path }: PageProps & { path: string }) {
   const [q, setQ] = useState('')
   const [teams, setTeams] = useState<WorkflowTeam[]>([])
@@ -72,15 +84,15 @@ function WorkflowsPage({ navigate, path }: PageProps & { path: string }) {
   }
 
   const openTeam = (team: string) => navigate(`/workflows?team=${encodeURIComponent(team)}`)
-  const toggleFolder = (folderName: string) => setExpandedFolders((current) => { const next = new Set(current); if (next.has(folderName)) next.delete(folderName); else next.add(folderName); return next })
+  const toggleFolder = (folderPath: string) => setExpandedFolders((current) => { const next = new Set(current); if (next.has(folderPath)) next.delete(folderPath); else next.add(folderPath); return next })
 
   useEffect(() => { if (teamFromUrl) loadTeam(teamFromUrl); else loadTeams() }, [teamFromUrl])
 
   if (selectedTeam) {
     return <>
-      <PageHeader title={selectedTeam} description="Workflows grouped by the sub-folder from workflow metadata." action={<button className="cm-btn-secondary" onClick={() => navigate('/workflows')}><ArrowLeft className="h-4 w-4" /> All teams</button>} />
+      <PageHeader title={selectedTeam} description="Workflows grouped by their metadata folder hierarchy." action={<button className="cm-btn-secondary" onClick={() => navigate('/workflows')}><ArrowLeft className="h-4 w-4" /> All teams</button>} />
       {error && <ErrorBox message={error} />}
-      {loading ? <Loading /> : <section className="space-y-4">{folders.length === 0 ? <div className="cm-card"><Empty text="No workflows found for this team." /></div> : folders.map((folder) => { const expanded = expandedFolders.has(folder.name); return <div key={folder.name} className="cm-card overflow-hidden"><button type="button" onClick={() => toggleFolder(folder.name)} className="flex w-full items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3 text-left hover:bg-slate-100"><div className="flex min-w-0 items-center gap-3"><ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${expanded ? '' : '-rotate-90'}`} /><div><p className="text-sm font-semibold text-slate-800">{folder.name}</p><p className="text-xs text-slate-400">Metadata sub-folder</p></div></div><span className="cm-badge bg-white text-slate-500 ring-1 ring-slate-200">{folder.workflowCount} workflow{folder.workflowCount === 1 ? '' : 's'}</span></button>{expanded && <div className="divide-y divide-slate-100">{folder.workflows.map((w) => <button key={w.branchName} onClick={() => navigate(`/mappings/${w.workflowId}`)} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50"><div className="min-w-0"><div className="flex items-center gap-2"><Workflow className="h-4 w-4 shrink-0 text-slate-400" /><span className="truncate font-medium text-slate-900">{w.workflowName || w.workflowId}</span></div><p className="mt-1 pl-6 font-mono text-xs text-slate-400">{w.workflowId} · {w.folderPath || 'Root'}</p></div><div className="flex shrink-0 items-center gap-3"><span className="hidden font-mono text-xs text-slate-400 md:block">{w.headSha}</span><span className="cm-badge bg-emerald-50 text-emerald-700">{w.status}</span><ArrowRight className="h-4 w-4 text-slate-300" /></div></button>)}</div>}</div> })}</section>}
+      {loading ? <Loading /> : <section className="space-y-4">{folders.length === 0 ? <div className="cm-card"><Empty text="No workflows found for this team." /></div> : folders.map((folder) => <WorkflowFolderNode key={folder.name} folder={folder} navigate={navigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder} />)}</section>}
     </>
   }
 
